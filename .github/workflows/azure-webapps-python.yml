@@ -72,13 +72,13 @@ jobs:
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
-      - name: Download artifact from build job
+      - name: 下载构建工件
         uses: actions/download-artifact@v3
         with:
           name: python-app
           path: .
 
-      - name: 'Deploy to Azure Web App'
+      - name: 部署到 Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
