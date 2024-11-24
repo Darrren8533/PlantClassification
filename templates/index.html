@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Disease Identifier</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #45a049;
+            --background-color: #f0f4f0;
+            --text-color: #333;
+            --error-color: #f44336;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        p {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-input-wrapper .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        .file-input-wrapper .btn:hover {
+            background-color: var(--secondary-color);
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+        #loading {
+            display: none;
+            font-size: 18px;
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 20px;
+        }
+        #image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 20px auto; /* Center horizontally */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        #output {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .result-item {
+            margin-bottom: 10px;
+        }
+        .result-item strong {
+            color: var(--primary-color);
+        }
+        .error {
+            color: var(--error-color);
+            font-weight: bold;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 10px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Plant Disease Identifier</h1>
+        <p>Upload an image of a plant leaf to identify the crop and disease.</p>
+        <form id="upload-form" enctype="multipart/form-data">
+            <div class="file-input-wrapper">
+                <button class="btn">Choose File</button>
+                <input type="file" id="file-input" name="file" accept="image/*" required>
+            </div>
+            <button type="submit">Upload and Predict</button>
+        </form>
+        <img id="image-preview" alt="Image preview" />
+        <div id="loading">Processing... Please wait.</div>
+        <div id="output"></div>
+    </div>
+    
+    <script>
+        const form = document.getElementById("upload-form");
+        const fileInput = document.getElementById("file-input");
+        const imagePreview = document.getElementById("image-preview");
+        const outputDiv = document.getElementById("output");
+        const loadingDiv = document.getElementById("loading");
+
+        fileInput.addEventListener("change", function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = "block";
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            outputDiv.innerHTML = "";
+            loadingDiv.style.display = "block";
+
+            if (fileInput.files.length === 0) {
+                alert("Please select a file!");
+                loadingDiv.style.display = "none";
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file.type.startsWith("image/")) {
+                alert("Please upload a valid image file!");
+                loadingDiv.style.display = "none";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData,
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    outputDiv.innerHTML = `
+                        <h2>Prediction Result:</h2>
+                        <div class="result-item"><strong>Crop:</strong> ${result.crop.name} (Class: ${result.crop.class})</div>
+                        <div class="result-item"><strong>Disease:</strong> ${result.disease.name} (Class: ${result.disease.class})</div>
+                    `;
+                } else {
+                    outputDiv.innerHTML = `
+                        <h2 class="error">Error:</h2>
+                        <p>${result.error}</p>
+                    `;
+                }
+            } catch (error) {
+                outputDiv.innerHTML = `
+                    <h2 class="error">Error:</h2>
+                    <p>${error.message}</p>
+                `;
+            } finally {
+                loadingDiv.style.display = "none";
+                fileInput.value = "";
+                outputDiv.classList.add('fade-in');
+            }
+        });
+    </script>
+</body>
+</html>
